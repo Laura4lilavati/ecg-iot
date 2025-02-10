@@ -1,24 +1,49 @@
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
 
-const int numSamples = 500; // Número de muestras
+#ifndef STASSID
+#define STASSID ""
+#define STAPSK ""
+#endif
+
+const char* ssid = STASSID;
+const char* password = STAPSK;
+
+const int numSamples = 500;
 int ecgValues[numSamples]; // Array para almacenar los valores del ECG
 
 void generateECGSignal();
 
 void setup() {
-  Serial.begin(9600); // Inicializa comunicación serial
+  Serial.begin(115200);
+
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
-  generateECGSignal(); // Genera señal al estilo ECG
+  //generateECGSignal();
   
-  for (int i = 0; i < numSamples; i++) {
-    Serial.println(ecgValues[i]); // Imprime cada valor en el monitor serial
-    
-    delay(5); // Espera antes de imprimir el siguiente valor
-  }
+//   for (int i = 0; i < numSamples; i++) {
+//     Serial.println(ecgValues[i]); 
+//     delay(5);
+//   }
   
-  delay(1000); // Espera antes de generar otra señal al estilo ECG
+//   delay(1000); // Espera antes de generar otra señal al estilo ECG
 }
 
 // Función para generar señal al estilo ECG con ruido aleatorio

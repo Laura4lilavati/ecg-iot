@@ -1,49 +1,58 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <UbidotsESPMQTT.h>
 
 #ifndef STASSID
 #define STASSID ""
 #define STAPSK ""
+#define UBIDOTS_TOKEN ""
+#define DEVICE_NAME "dispositivoecg"
+#define VARIABLE_LABEL "senal_ecg"
 #endif
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
+
+Ubidots client(UBIDOTS_TOKEN);
 
 const int numSamples = 500;
 int ecgValues[numSamples]; // Array para almacenar los valores del ECG
 
 void generateECGSignal();
 
-void setup() {
-  Serial.begin(115200);
-
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i=0;i<length;i++) {
+    Serial.print((char)payload[i]);
   }
+  Serial.println();
+}
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+void setup() {
+
+  Serial.begin(115200);
+  // client.setDebug(true); // Pass a true or false bool value to activate debug messages
+  client.wifiConnection(STASSID, STAPSK);
+  client.begin(callback);
 }
 
 void loop() {
-  //generateECGSignal();
-  
-//   for (int i = 0; i < numSamples; i++) {
-//     Serial.println(ecgValues[i]); 
-//     delay(5);
-//   }
-  
-//   delay(1000); // Espera antes de generar otra señal al estilo ECG
+
+if(!client.connected()){
+  client.reconnect();
+  }
+
+  generateECGSignal();
+  for (int i = 0; i < numSamples; i++) {
+    Serial.println(ecgValues[i]); 
+    client.add(VARIABLE_LABEL, ecgValues[i]);
+    delay(5); 
+  }
+  delay(1000); // Espera antes de generar otra señal al estilo ECG
+  client.ubidotsPublish(DEVICE_NAME);
+  client.loop();
 }
 
 // Función para generar señal al estilo ECG con ruido aleatorio

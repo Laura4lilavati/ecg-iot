@@ -50,9 +50,9 @@ void setup() {
   // client.setDebug(true);
   client.wifiConnection(STASSID, STACONTRASENA);
   if (client.getMQTTClient()->setBufferSize(1024)) {
-    Serial.println("Buffer size successfully changed.");
+    Serial.println("Tamaño del Buffer cambiado exitosamente.");
 } else {
-    Serial.println("Failed to change buffer size.");
+    Serial.println("No se cambio el tamaño del Buffer.");
 }
   client.begin(callback);
   pinMode(SENSOR, INPUT);

@@ -9,28 +9,15 @@
 #define NOMBRE_DISPOSITIVO "dispositivoecg"
 #define VARIABLE_LABEL "senal_ecg"
 #define SENSOR A0
+#define BUFFER_SIZE 10
 #endif
 
 const char* ssid = STASSID;
 const char* contrasena = STACONTRASENA;
+float ecgBuffer[BUFFER_SIZE];
+int indiceBuffer = 0;
 
 Ubidots client(UBIDOTS_TOKEN);
-
-const int TAMANO_VENTANA = 10; 
-float lecturasEcg[TAMANO_VENTANA];
-int indiceLectura = 0;
-
-float obtenerPromedio(float nuevaLectura) {
-  float suma = -lecturasEcg[indiceLectura];
-  lecturasEcg[indiceLectura] = nuevaLectura;
-  suma += nuevaLectura;
-  indiceLectura = (indiceLectura + 1) % TAMANO_VENTANA;
-  float sumaActual = 0;
-  for (int i = 0; i < TAMANO_VENTANA; i++) {
-    sumaActual += lecturasEcg[i];
-  }
-  return sumaActual / TAMANO_VENTANA;
-}
 
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("El mensaje arribo [");
@@ -42,25 +29,45 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }
 
-void setup() {
+void envioBufferAUbidots() {
+  if (indiceBuffer == 0) return;
+  for (int i = 0; i < indiceBuffer; i++) {
+    client.add(VARIABLE_LABEL, ecgBuffer[i]);
+  }
+  if (client.ubidotsPublish(NOMBRE_DISPOSITIVO)) {
+    Serial.println("Datos enviados correctamente:");
+    for (int i = 0; i < indiceBuffer; i++) {
+      Serial.println(ecgBuffer[i]);
+    }
+    indiceBuffer = 0;
+  } else {
+    Serial.println("Error al enviar los datos");
+  }
+}
 
+void setup() {
   Serial.begin(115200);
-  // client.setDebug(true); // To activate debug messages
+  // client.setDebug(true);
   client.wifiConnection(STASSID, STACONTRASENA);
+  if (client.getMQTTClient()->setBufferSize(1024)) {
+    Serial.println("Buffer size successfully changed.");
+} else {
+    Serial.println("Failed to change buffer size.");
+}
   client.begin(callback);
   pinMode(SENSOR, INPUT);
 }
 
 void loop() {
-
-  if(!client.connected()){
+    if(!client.connected()){
     client.reconnect();
     }
-
-  float ECGsinFiltro = analogRead(SENSOR); 
-  float ECGfiltrado = obtenerPromedio(ECGsinFiltro);
-  client.add(VARIABLE_LABEL, ECGfiltrado);
-  client.ubidotsPublish(NOMBRE_DISPOSITIVO);
+  
   client.loop();
-  delay(10);
+  float ecgValue = analogRead(SENSOR);
+  ecgBuffer[indiceBuffer++] = ecgValue;
+  if (indiceBuffer >= BUFFER_SIZE) {
+    envioBufferAUbidots();
+  }
+  delay(2);
 }
